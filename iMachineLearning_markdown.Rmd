@@ -1,0 +1,160 @@
+---
+title: "Machine Learning Class Project"
+author: "Gomez"
+date: "4/10/2020"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Load libraries
+library(caret)
+library(ElemStatLearn)
+library(forecast)
+library(dplyr)
+```
+
+## Synopsis
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity. One thing that is regularly quantified is how much of a particular activity is performed, but rarely is quantified how well the activity is done. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants who were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+Machine learning techniques are applied to classify the quality of the activities. Prediction with trees, random forest, and boosting techniques were applied to a training dataset, with random forest providing the most acurate classification.
+
+## Data Processing
+
+### Load Datasets
+
+The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har].
+We first download and load the train and test datasets.
+
+```{r getData, cache=TRUE, warning=FALSE}
+## Download dataset
+fileName.train <- "trainData.csv"
+if (exists(fileName.train)==FALSE) {
+        fileURL.train <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"  
+        download.file(fileURL.train, destfile = fileName.train)
+        downloadDate <- date()
+}
+
+
+fileName.test <- "testData.csv"
+if (exists(fileName.test)==FALSE) {
+        fileURL.test <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+        download.file(fileURL.test, destfile = fileName.test)
+        downloadDate <- date()
+}
+
+## Load training data
+trainData <- read.csv("./trainData.csv")
+
+## Load testing data
+testData <- read.csv("./testData.csv")
+```
+
+The datasets consist of 19,622 observations and 160 variables for the train dataset, and 20 observations and 160 variables for the test dataset.
+The goal is to predict the "classe" variable, which classifies the manner in which participants performed the exercises.
+
+### Variable selection for models
+
+I decided to use all variables that registered movement in (x,y,z) direction in the belt, arm, dumbbell, and forearm. The search returned the variables for gyros, accel, and magnet.
+
+```{r searchVariables}
+names(trainData)[grep(c("_belt_|_arm_|_dumbbell_|_forearm_"), colnames(trainData))]
+```
+
+## Test Different Machine Learning Techniques
+
+Three different models were created using the tree, random forest, and boosting methods. The prediction was that random forest would give the most accurate results, but also take longer to run.
+
+### Prediction with Trees
+```{r tree, cache=TRUE}
+## Prediction with tree using "Caret" package
+tree <- train(classe ~ gyros_belt_x + gyros_belt_y + gyros_belt_z +
+                      accel_belt_x + accel_belt_y + accel_belt_z + 
+                      magnet_belt_x + magnet_belt_y + magnet_belt_z + 
+                      gyros_arm_x + gyros_arm_y + gyros_arm_z + 
+                      accel_arm_x + accel_arm_y + accel_arm_z + 
+                      magnet_arm_x + magnet_arm_y + magnet_arm_z + 
+                      gyros_dumbbell_x + gyros_dumbbell_y + gyros_dumbbell_z + 
+                      accel_dumbbell_x + accel_dumbbell_y + accel_dumbbell_z + 
+                      magnet_dumbbell_x + magnet_dumbbell_y + magnet_dumbbell_z + 
+                      gyros_forearm_x + gyros_forearm_y + gyros_forearm_z + 
+                      accel_forearm_x + accel_forearm_y + accel_forearm_z + 
+                      magnet_forearm_x + magnet_forearm_y + magnet_forearm_z
+              , method = "rpart", data = trainData)
+```
+
+```{r treeModelResults}
+## Print information from the tree model
+print(tree)
+## Create confusion Matrix for accuracy results
+confusionMatrix(trainData$classe, predict(tree, newdata = trainData))
+```
+
+### Random Forest
+```{r rf, cache=TRUE}
+## Random Forest
+rf <- train(classe ~ gyros_belt_x + gyros_belt_y + gyros_belt_z +
+                    accel_belt_x + accel_belt_y + accel_belt_z + 
+                    magnet_belt_x + magnet_belt_y + magnet_belt_z + 
+                    gyros_arm_x + gyros_arm_y + gyros_arm_z + 
+                    accel_arm_x + accel_arm_y + accel_arm_z + 
+                    magnet_arm_x + magnet_arm_y + magnet_arm_z + 
+                    gyros_dumbbell_x + gyros_dumbbell_y + gyros_dumbbell_z + 
+                    accel_dumbbell_x + accel_dumbbell_y + accel_dumbbell_z + 
+                    magnet_dumbbell_x + magnet_dumbbell_y + magnet_dumbbell_z + 
+                    gyros_forearm_x + gyros_forearm_y + gyros_forearm_z + 
+                    accel_forearm_x + accel_forearm_y + accel_forearm_z + 
+                    magnet_forearm_x + magnet_forearm_y + magnet_forearm_z,
+            data=trainData, method="rf", ntree = 150)
+```
+
+```{r rfModelResults}
+## Print information from the tree model
+print(rf)
+## Create confusion Matrix for accuracy results
+confusionMatrix(trainData$classe, predict(rf, newdata = trainData))
+```
+
+
+### Boosting
+```{r boosting, cache=TRUE}
+## Boosting
+gbm <- train(classe ~ gyros_belt_x + gyros_belt_y + gyros_belt_z +
+                     accel_belt_x + accel_belt_y + accel_belt_z + 
+                     magnet_belt_x + magnet_belt_y + magnet_belt_z + 
+                     gyros_arm_x + gyros_arm_y + gyros_arm_z + 
+                     accel_arm_x + accel_arm_y + accel_arm_z + 
+                     magnet_arm_x + magnet_arm_y + magnet_arm_z + 
+                     gyros_dumbbell_x + gyros_dumbbell_y + gyros_dumbbell_z + 
+                     accel_dumbbell_x + accel_dumbbell_y + accel_dumbbell_z + 
+                     magnet_dumbbell_x + magnet_dumbbell_y + magnet_dumbbell_z + 
+                     gyros_forearm_x + gyros_forearm_y + gyros_forearm_z + 
+                     accel_forearm_x + accel_forearm_y + accel_forearm_z + 
+                     magnet_forearm_x + magnet_forearm_y + magnet_forearm_z,
+             method="gbm", data=trainData, verbose=F)
+
+
+```
+
+```{r boostingModelResults}
+## Print information from the gbm model
+print(gbm)
+## Create confusion Matrix for accuracy results
+confusionMatrix(trainData$classe, predict(gbm, newdata = trainData))
+```
+
+Random forest proved to be the most reliable technique when predicting the "classe" variable. We will use this model to predict "classe" on the testing dataset.
+
+## Using model with testing dataset
+
+```{r testing}
+## Predict classe values for testing dataset using random forest method
+## This method provides the best accuracy on the training dataset
+predict(rf, newdata = testData)
+```
+
+The model correctly predicted the 20 cases included in the dataset, as checked on the quiz part of this project.
